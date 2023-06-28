@@ -141,7 +141,7 @@ def write_data(count, times, data):
 
 if __name__ == "__main__":
     while True:
-        try:
+        if int(time.strftime("%M"))%10 != 0:
             url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
             write_times = 0
             w_book = openpyxl.Workbook()
@@ -158,8 +158,7 @@ if __name__ == "__main__":
             count = count_warrant()
             find_warrant(count)
             _browser.quit()
-            print("-----本次分析結束 休息10分鐘-----"+"\n")
-            time.sleep(600)
-        except KeyboardInterrupt:
-            print("-----結束本次分析-----")
-            break 
+            print("-----本次分析結束-----"+"\n")
+        elif time.strftime("%H%M" , time.localtime()) == "1330":
+            print("-----當前分析時間：13：30，結束本次分析-----")
+            break
