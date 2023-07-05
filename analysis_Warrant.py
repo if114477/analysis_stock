@@ -90,6 +90,7 @@ def find_warrant(count):
                             _browser.execute_script("arguments[0].click();", basic_info)
                         except:
                             pass
+                        WebDriverWait(_browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ifWarrantAnalyzer"]')))
                         _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="ifWarrantAnalyzer"]'))
                         time.sleep(5)
                         times = times+1
@@ -126,22 +127,24 @@ def analysis_data(count, times):
         data.append("當前價格："+warrant_price.text)
 
         print(data)
-        # write_data(count, times, data)
 
 # 寫資料 目前是用print的方式顯示，故寫入excel暫不用
-def write_data(count, times, data):
-    row = times+2
-    for column in range(1, len(data)+1):
-        w_sheet.cell(row, column).value = data[column-1]
-    write_times = write_times+1
+# def write_data(count, times, data):
+#     row = times+2
+#     for column in range(1, len(data)+1):
+#         w_sheet.cell(row, column).value = data[column-1]
+#     write_times = write_times+1
 
-    if write_times == count:
-        w_book.save('analysis_warrant.xlsx')
-        print("資料寫入完成")
+#     if write_times == count:
+#         w_book.save('analysis_warrant.xlsx')
+#         print("資料寫入完成")
 
 if __name__ == "__main__":
     while True:
-        if int(time.strftime("%M"))%10 != 0:
+        if int(time.strftime("%H%M", time.localtime())) == 1330:
+            print("-----當前分析時間：1330，結束分析-----")
+            break
+        elif int(time.strftime("%M", time.localtime()))%10 == 0:
             url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
             write_times = 0
             w_book = openpyxl.Workbook()
@@ -159,6 +162,3 @@ if __name__ == "__main__":
             find_warrant(count)
             _browser.quit()
             print("-----本次分析結束-----"+"\n")
-        elif time.strftime("%H%M" , time.localtime()) == "1330":
-            print("-----當前分析時間：13：30，結束本次分析-----")
-            break
