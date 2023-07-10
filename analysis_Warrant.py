@@ -115,8 +115,8 @@ def analysis_data(count, times):
     rate_tr = detail_tr[4]
     rate_td = rate_tr.find_elements(By.TAG_NAME, 'td')
     warrant_rate = rate_td[7]
-    # 取前一日在外流通張數低於500或是在外流通率低於10％
-    if int((warrant_flux.text).replace(",", "")) < 1000 or int(float((warrant_rate.text).replace("%", ""))) < 20:
+    # 取前一日在外流通張數低於1000或是在外流通率低於10％
+    if int((warrant_flux.text).replace(",", "")) < 1000 or int(float((warrant_rate.text).replace("%", ""))) < 10:
         warrant_data = _browser.find_element(By.XPATH, '//*[@id="warrantData"]')
         data_td = warrant_data.find_elements(By.TAG_NAME, 'td')
         warrant_code = data_td[0]
