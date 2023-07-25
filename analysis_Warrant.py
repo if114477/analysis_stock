@@ -1,5 +1,4 @@
-import time, openpyxl
-from datetime import datetime
+import time, openpyxl, os
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
@@ -33,7 +32,7 @@ def count_warrant():
     select_category()
     status = 1
     count = 0
-    print("-----當前符合權證-----")
+    print("-----當前符合權證-----", flush=True)
     while status == 1:
         table = _browser.find_element(By.XPATH, '//*[@data-role="listview"]')
         warrant_rows = table.find_elements(By.TAG_NAME,'tr')
@@ -49,7 +48,7 @@ def count_warrant():
             count = count+1
             warrant_name = warrant_attr[attr]
             _browser.execute_script("arguments[0].scrollIntoView();", warrant_name)
-            print(str(count)+"、"+warrant_name.text)
+            print(str(count)+"、"+warrant_name.text, flush=True)
 
         if row == 19:
             status = 0
@@ -57,10 +56,11 @@ def count_warrant():
     return count
 
 # 逐一分析符合權證
-def find_warrant(count):
+def find_warrant(count, b_xml):
     status = 1
     times = 1
-    print("-----分析結果-----")
+    buy_data = []
+    print("-----分析結果-----", flush=True)
     while status == 1:
         table = _browser.find_element(By.XPATH, '//*[@data-role="listview"]')
         warrant_rows = table.find_elements(By.TAG_NAME,'tr')
@@ -90,75 +90,156 @@ def find_warrant(count):
                             _browser.execute_script("arguments[0].click();", basic_info)
                         except:
                             pass
-                        WebDriverWait(_browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ifWarrantAnalyzer"]')))
-                        _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="ifWarrantAnalyzer"]'))
-                        time.sleep(5)
-                        times = times+1
-                        analysis_data(count, times)
+                        try:
+                            WebDriverWait(_browser, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ifWarrantAnalyzer"]')))
+                            _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="ifWarrantAnalyzer"]'))
+                            time.sleep(3)
+                            buy, b_forxml= analysis_data(buy_data, b_xml)
+                        except:
+                            pass
                         _browser.close()
                         _browser.switch_to.window(_browser.window_handles[0])
+                        times = times+1
 
+            # 顯示當次結果
             if times >= attr:
+                buy_toStr = '\n'.join(buy)
+                # sell_toStr = '\n'.join(sell)
+                print("大戶買進：\n"+buy_toStr)
+                # print("大戶賣出：\n"+sell_toStr)
+                # notification(buy_toStr, sell_toStr)
                 status = 0
                 break
+    return b_forxml
 
 # 分析資料
-def analysis_data(count, times):
-    data = []
+def analysis_data(buy, b_toxml):
+    buy_list = []
+    add = 0
     WebDriverWait(_browser, 30).until(EC.presence_of_element_located((By.XPATH, '//*[@id="underlyingData"]')))
-    WebDriverWait(_browser, 15).until(EC.presence_of_element_located((By.XPATH, '//*[@id="warrantData"]')))
     warrant_detail = _browser.find_element(By.XPATH, '//*[@id="warrantDataDetail"]')
+
+    # 基本資料
     detail_tr = warrant_detail.find_elements(By.TAG_NAME, 'tr')
     flux_tr = detail_tr[3]
     flux_td = flux_tr.find_elements(By.TAG_NAME, 'td')
-    warrant_flux = flux_td[7]
+    warrant_flux = flux_td[7]   # 在外流通數
     rate_tr = detail_tr[4]
     rate_td = rate_tr.find_elements(By.TAG_NAME, 'td')
-    warrant_rate = rate_td[7]
-    # 取前一日在外流通張數低於1000或是在外流通率低於10％
+    warrant_total = rate_td[5]  # 總發行張數
+    warrant_rate = rate_td[7]   # 在外流通率
+
+    # 當前資料
+    warrant_data = _browser.find_element(By.XPATH, '//*[@id="warrantData"]')
+    data_td = warrant_data.find_elements(By.TAG_NAME, 'td')
+    warrant_code = data_td[0]   # 權證代碼 
+    warrant_name = data_td[1]   # 權證名稱
+    warrant_price = data_td[6]  # 權證當前價格
+    warrant_vol = data_td[7]    # 權證當前交易量
+
+    # 取前一日在外流通張數低於1000張或是在外流通率低於10％，當作大戶買進依據
     if int((warrant_flux.text).replace(",", "")) < 1000 or int(float((warrant_rate.text).replace("%", ""))) < 10:
-        warrant_data = _browser.find_element(By.XPATH, '//*[@id="warrantData"]')
-        data_td = warrant_data.find_elements(By.TAG_NAME, 'td')
-        warrant_code = data_td[0]
-        data.append("權證代碼："+warrant_code.text)
-        warrant_name = data_td[1]
-        data.append("權證名稱："+warrant_name.text)
-        warrant_price = data_td[6]
-        data.append("當前價格："+warrant_price.text)
+        buy.append(warrant_code.text+" "+warrant_name.text+" 當前價格："+warrant_price.text+" 交易量："+warrant_vol.text+" 總發行："+warrant_total.text+" 在外流通："+warrant_flux.text)
+        buy_list.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+        # 判斷符合權證是否存在於陣列中，如果沒有則存進陣列 用途是寫進excel
+        if len(b_toxml) == 0:
+            b_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+        else:
+            for b in range(0, len(b_toxml), 6):
+                if b_toxml[b] == buy_list[0]:
+                    for index in range(0, 5):
+                        b_toxml[b] = buy_list[index]
+                else:
+                    add = 1
+            if add == 1:        
+                b_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
 
-        print(data)
+    # 取前一日在外流通張數高於10000張或是在外流通率高80％，當作大戶賣出依據
+    # if int((warrant_flux.text).replace(",", "")) > 10000 or int(float((warrant_rate.text).replace("%", ""))) > 80:
+    #     sell.append(warrant_code.text+" "+warrant_name.text+" 當前價格："+warrant_price.text+" 交易量："+warrant_vol.text+" 總發行："+warrant_total.text+" 在外流通："+warrant_flux.text)
+    #     sell_list.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+    #     # 判斷符合權證是否存在於陣列中，如果沒有則存進陣列 用途是寫進excel
+    #     if len(s_toxml) == 0:
+    #         s_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+    #     else:
+    #         for s in range(0, len(s_toxml), 6):
+    #             if s_toxml[s] == sell_list[0]:
+    #                 for index in range(0, 5):
+    #                     s_toxml[s] = sell_list[index]
+    #             else:
+    #                 add = 1
+    #         if add == 1:        
+    #             s_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
 
-# 寫資料 目前是用print的方式顯示，故寫入excel暫不用
-# def write_data(count, times, data):
-#     row = times+2
-#     for column in range(1, len(data)+1):
-#         w_sheet.cell(row, column).value = data[column-1]
-#     write_times = write_times+1
+    return buy, b_toxml
 
-#     if write_times == count:
-#         w_book.save('analysis_warrant.xlsx')
-#         print("資料寫入完成")
+def notification(buy, sell):
+    msg = "大戶買進：\n"+buy+"大戶賣出：\n"+sell
+    os.system("""
+                osascript -e 'display notification "{}" with title "notification"'
+            """.format(msg))
+
+# 寫資料 儲存每日結果至excel
+def write_data(buy):
+    # 建立日結表單
+    w_book = openpyxl.Workbook()
+    ws = w_book["Sheet"]
+    w_book.remove(ws)
+    w_book.create_sheet("買進", 0)
+    # w_book.create_sheet("賣出", 1)
+    
+    for sheet in w_book:
+        sheet.column_dimensions['A'].width=12
+        sheet.column_dimensions['B'].width=25
+        sheet.column_dimensions['C'].width=10
+        sheet.column_dimensions['D'].width=15
+        sheet.column_dimensions['E'].width=15
+        sheet.column_dimensions['F'].width=20
+
+    # 處理excel
+    buy_sheet = w_book["買進"]
+    warrant_info = ["權證代碼", "權證名稱", "價格", "交易量", "總發行數量", "在外流通張數"]
+    # 寫入標籤
+    for title in range(1, len(warrant_info)+1):
+        buy_sheet.cell(1, title).value = warrant_info[title-1]
+    # 寫入資料
+    for column in range(2, (len(buy)//6)+2):
+        index = 12
+        for row in range(1, 7):
+            buy_sheet.cell(column, row).value = buy[(column*6)-index]
+            index = index-1
+
+    # sell_sheet = w_book["賣出"]
+    # # 寫入標籤
+    # for title in range(1, len(warrant_info)+1):
+    #     sell_sheet.cell(1, title).value = warrant_info[title-1]
+    # # 寫入資料    
+    # for column in range(2, (len(sell)//6)+2):
+    #     index = 12
+    #     for row in range(1, 7):
+    #         sell_sheet.cell(column, row).value = sell[(column*6)-index]
+    #         index = index-1
+
+    w_book.save(str(time.strftime("%Y%m%d", time.localtime()))+'.xlsx')
 
 if __name__ == "__main__":
+    buy_xml=[]
     while True:
-        if int(time.strftime("%H%M", time.localtime())) == 1330:
-            print("-----當前分析時間：1330，結束分析-----")
-            break
-        elif int(time.strftime("%M", time.localtime()))%10 == 0:
+        now = int(time.strftime("%H%M", time.localtime()))
+        if (now>=901 and now<1330):
+            print("當前時間"+time.strftime("%Y-%m-%d %H:%M:%S" , time.localtime()), flush=True)
             url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
-            write_times = 0
-            w_book = openpyxl.Workbook()
-            w_sheet = w_book.worksheets[0]
-            w_sheet.merge_cells('A1:G1')
-            warrant_info = ["權證代碼", "權證名稱", "當前價格", "在外流通量(%)", "凱基網址"]
-            w_sheet['A1'] = "當前分析時間：" + str(datetime.now())
-            for column in range(1, len(warrant_info)+1):
-                w_sheet.cell(2, column).value = warrant_info[column-1]
 
             _browser = makeWebDriver()
-            print("當前時間"+time.strftime("%Y-%m-%d %H:%M:%S" , time.localtime()))
             _browser.get(url)
             count = count_warrant()
-            find_warrant(count)
+            buy_daily = find_warrant(count, buy_xml)
             _browser.quit()
-            print("-----本次分析結束-----"+"\n")
+            print("-----本次分析結束-----\n", flush=True)
+        elif now >= 1330:
+            print("-----當前分析時間：1330，結束分析-----", flush=True)
+            write_data(buy_daily)
+            print("資料寫入完成", flush=True)
+            break
+        elif (now<901):
+            time.sleep(60)
