@@ -1,9 +1,7 @@
 import time, openpyxl, requests
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 
 def makeWebDriver():
@@ -11,7 +9,7 @@ def makeWebDriver():
     chrome_options.add_argument("--start-maximized")       # 視窗最大化
     chrome_options.add_argument('--headless')        # 背景执行
     chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    browser = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    browser = webdriver.Chrome(options=chrome_options)
 
     return browser
 
@@ -20,7 +18,7 @@ def select_category():
         _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="iMARK"]'))
     except:
         pass
-    WebDriverWait(_browser, 30).until(EC.presence_of_element_located((By.XPATH, '//*[@class="main_form"]')))
+    WebDriverWait(_browser, 50).until(EC.presence_of_element_located((By.XPATH, '//*[@class="main_form"]')))
     tbody = _browser.find_element(By.XPATH, '//*[@class="main_form"]')
     checkbox = tbody.find_elements(By.XPATH, '//*[@type="checkbox"]')
     checkbox = checkbox[11]
@@ -105,7 +103,10 @@ def find_warrant(count, b_xml):
             # 顯示當次結果
             if times >= attr:
                 buy_prt = '\n'.join(buy_forprt)
-                print("大戶買進：\n"+buy_prt)
+                if len(buy_prt)!=0:
+                    print("大戶買進：\n"+buy_prt)
+                else:
+                    print("大戶買進：無")
                 buy_line = '\n'.join(buy_forline)
                 # sell_toStr = '\n'.join(sell)
                 message = "大戶買進：\n"+buy_line
@@ -152,9 +153,12 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
         for b in range(0, len(b_toxml), 6):
             if b_toxml[b] == buy_list[0]:
                 condition = 0
-                if int(buy_list[3])-int(b_toxml[b+3]) >= 100:
+                if (int(buy_list[3])-int(b_toxml[b+3]) >= 100) and (int(buy_list[3]) > 1000):
                     buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
                     break
+
+        if int(buy_list[3]) < 1000:
+            condition = 0
 
         if condition == 1:
             buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
@@ -194,8 +198,7 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
 
 # 發送line通知
 def line_notify(msg):
-    Line_Notify_Account = {'token':'eVjVO4y8jiQTCwHkGtzuOyMLZqqiZKUklr20dg8bcWJ'}   # Vplo1OXg2VL2su3y2uKd95TFfvjNJNAWWfkrUvA0M7t 惡魔喵團
-                                                                                    # eVjVO4y8jiQTCwHkGtzuOyMLZqqiZKUklr20dg8bcWJ 個人聊天 
+    Line_Notify_Account = {'token':'XXX'}
 
     headers = {"Authorization": "Bearer " + Line_Notify_Account['token'],
                "Content-Type" : "application/x-www-form-urlencoded"}
@@ -248,6 +251,7 @@ def write_data(buy):
     w_book.save(str(time.strftime("%Y%m%d", time.localtime()))+'_日結.xlsx')
 
 if __name__ == "__main__":
+    
     buy_xml=[]
     while True:
         now = int(time.strftime("%H%M", time.localtime()))
@@ -261,7 +265,7 @@ if __name__ == "__main__":
             buy_daily = find_warrant(count, buy_xml)
             _browser.quit()
             print("-----本次分析結束-----\n", flush=True)
-        elif now >= 1325:
+        elif now >= 1330:
             print("-----當前分析時間：1330，結束分析-----", flush=True)
             write_data(buy_daily)
             print("資料寫入完成", flush=True)
