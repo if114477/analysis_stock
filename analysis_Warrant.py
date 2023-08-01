@@ -148,15 +148,16 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
         buy_toprt.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
         buy_list.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
 
-        # 當本次的交易量超過前一次的交易量100時才發出通知
+        # 資料已存在時，本次的交易量大於1000且大於前一次的交易量100時才發出通知
         condition = 1
         for b in range(0, len(b_toxml), 6):
             if b_toxml[b] == buy_list[0]:
                 condition = 0
-                if (int(buy_list[3])-int(b_toxml[b+3]) >= 100) and (int(buy_list[3]) > 1000):
+                if (int(buy_list[3])-int(b_toxml[b+3]) >= 100) and (int(buy_list[3]) >= 1000):
                     buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
                     break
 
+        # 資料不存在時，本次的交易量大於1000才發出通知
         if int(buy_list[3]) < 1000:
             condition = 0
 
@@ -165,17 +166,17 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
 
         # 判斷符合權證是否存在於陣列中，如果有則取代數據，沒有則存進陣列 用途是寫進excel
         add = 1
-        if len(b_toxml) == 0:
-            b_toxml.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
-        else:
-            for b in range(0, len(b_toxml), 6):
-                if b_toxml[b] == buy_list[0]:
-                    add = 0
-                    for index in range(0, 6):
-                        b_toxml[b+index] = buy_list[index]
+        for b in range(0, len(b_toxml), 6):
+            if (b_toxml[b] == buy_list[0]) and (int(buy_list[3]) >= 1000):
+                add = 0
+                for index in range(0, 6):
+                    b_toxml[b+index] = buy_list[index]
 
-            if add == 1:
-                b_toxml.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
+        if int(buy_list[3]) < 1000:
+            add = 0
+
+        if add == 1:
+            b_toxml.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
 
     # 取前一日在外流通張數高於10000張或是在外流通率高80％，當作大戶賣出依據
     # if int((warrant_flux.text).replace(",", "")) > 10000 or int(float((warrant_rate.text).replace("%", ""))) > 80:
