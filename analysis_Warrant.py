@@ -2,14 +2,16 @@ import time, openpyxl, requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 
 def makeWebDriver():
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument("--start-maximized")       # 視窗最大化
-    chrome_options.add_argument('--headless')        # 背景执行
+    # chrome_options.add_argument('--headless')        # 背景执行
     chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    browser = webdriver.Chrome(options=chrome_options)
+    browser = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
     return browser
 
@@ -147,16 +149,15 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
     if int(warrant_flux) < 1000 or int(float(warrant_rate)) < 10:
         buy_toprt.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
         buy_list.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
-
-        # 資料已存在時，本次的交易量大於1000且大於前一次的交易量100時才發出通知
+        
         condition = 1
+        # 資料存在時，本次的交易量大於1000且大於前一次的交易量100時才發出通知
         for b in range(0, len(b_toxml), 6):
             if b_toxml[b] == buy_list[0]:
                 condition = 0
-                if (int(buy_list[3])-int(b_toxml[b+3]) >= 100) and (int(buy_list[3]) >= 1000):
+                if int(buy_list[3])-int(b_toxml[b+3]) >= 100:
                     buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
                     break
-
         # 資料不存在時，本次的交易量大於1000才發出通知
         if int(buy_list[3]) < 1000:
             condition = 0
@@ -164,14 +165,14 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
         if condition == 1:
             buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
 
-        # 判斷符合權證是否存在於陣列中，如果有則取代數據，沒有則存進陣列 用途是寫進excel
         add = 1
+        # 資料存在時，覆蓋上新的資料
         for b in range(0, len(b_toxml), 6):
-            if (b_toxml[b] == buy_list[0]) and (int(buy_list[3]) >= 1000):
+            if b_toxml[b] == buy_list[0]:
                 add = 0
                 for index in range(0, 6):
                     b_toxml[b+index] = buy_list[index]
-
+        # 資料不存在時，本次的交易量大於1000才存入陣列
         if int(buy_list[3]) < 1000:
             add = 0
 
@@ -199,7 +200,7 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
 
 # 發送line通知
 def line_notify(msg):
-    Line_Notify_Account = {'token':'XXX'}
+    Line_Notify_Account = {'token':'bKJklUOQUc5A0FM8fxzY9OgxNO0XRUO3TURcOV4sDCK'} # eVjVO4y8jiQTCwHkGtzuOyMLZqqiZKUklr20dg8bcWJ
 
     headers = {"Authorization": "Bearer " + Line_Notify_Account['token'],
                "Content-Type" : "application/x-www-form-urlencoded"}
@@ -252,21 +253,23 @@ def write_data(buy):
     w_book.save(str(time.strftime("%Y%m%d", time.localtime()))+'_日結.xlsx')
 
 if __name__ == "__main__":
-    
+    _browser = makeWebDriver()
     buy_xml=[]
+    url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
     while True:
         now = int(time.strftime("%H%M", time.localtime()))
-        if (now>=901 and now<=1320):
+        if (now>=901 or now<=1320):
             print("當前時間"+time.strftime("%Y-%m-%d %H:%M:%S" , time.localtime()), flush=True)
-            url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
-
-            _browser = makeWebDriver()
             _browser.get(url)
             count = count_warrant()
             buy_daily = find_warrant(count, buy_xml)
-            _browser.quit()
+            _browser.execute_script("window.open('')")
+            _browser.switch_to.window(_browser.window_handles[0])
+            _browser.close()
+            _browser.switch_to.window(_browser.window_handles[0])
             print("-----本次分析結束-----\n", flush=True)
         elif now >= 1330:
+            _browser.quit()
             print("-----當前分析時間：1330，結束分析-----", flush=True)
             write_data(buy_daily)
             print("資料寫入完成", flush=True)
