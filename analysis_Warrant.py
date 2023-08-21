@@ -9,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 def makeWebDriver():
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument("--start-maximized")       # 視窗最大化
-    # chrome_options.add_argument('--headless')        # 背景执行
+    chrome_options.add_argument('--headless')        # 背景执行
     chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
     browser = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
@@ -110,12 +110,9 @@ def find_warrant(count, b_xml):
                 else:
                     print("大戶買進：無")
                 buy_line = '\n'.join(buy_forline)
-                # sell_toStr = '\n'.join(sell)
                 message = "大戶買進：\n"+buy_line
                 if len(buy_line)!=0:
                     line_notify(message)
-                # print("大戶賣出：\n"+sell_toStr)
-                # notification(buy_toStr, sell_toStr)
                 status = 0
                 break
     return b_forxml
@@ -179,28 +176,11 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
         if add == 1:
             b_toxml.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
 
-    # 取前一日在外流通張數高於10000張或是在外流通率高80％，當作大戶賣出依據
-    # if int((warrant_flux.text).replace(",", "")) > 10000 or int(float((warrant_rate.text).replace("%", ""))) > 80:
-    #     sell.append(warrant_code.text+" "+warrant_name.text+" 當前價格："+warrant_price.text+" 交易量："+warrant_vol.text+" 總發行："+warrant_total.text+" 在外流通："+warrant_flux.text)
-    #     sell_list.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
-    #     # 判斷符合權證是否存在於陣列中，如果沒有則存進陣列 用途是寫進excel
-    #     if len(s_toxml) == 0:
-    #         s_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
-    #     else:
-    #         for s in range(0, len(s_toxml), 6):
-    #             if s_toxml[s] == sell_list[0]:
-    #                 for index in range(0, 5):
-    #                     s_toxml[s] = sell_list[index]
-    #             else:
-    #                 add = 1
-    #         if add == 1:        
-    #             s_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
-
     return buy_toprt, buy_toline, b_toxml
 
 # 發送line通知
 def line_notify(msg):
-    Line_Notify_Account = {'token':'XXX'}
+    Line_Notify_Account = {'token':'bKJklUOQUc5A0FM8fxzY9OgxNO0XRUO3TURcOV4sDCK'} # eVjVO4y8jiQTCwHkGtzuOyMLZqqiZKUklr20dg8bcWJ
 
     headers = {"Authorization": "Bearer " + Line_Notify_Account['token'],
                "Content-Type" : "application/x-www-form-urlencoded"}
@@ -239,17 +219,6 @@ def write_data(buy):
             buy_sheet.cell(column, row).value = buy[(column*6)-index]
             index = index-1
 
-    # sell_sheet = w_book["賣出"]
-    # # 寫入標籤
-    # for title in range(1, len(warrant_info)+1):
-    #     sell_sheet.cell(1, title).value = warrant_info[title-1]
-    # # 寫入資料    
-    # for column in range(2, (len(sell)//6)+2):
-    #     index = 12
-    #     for row in range(1, 7):
-    #         sell_sheet.cell(column, row).value = sell[(column*6)-index]
-    #         index = index-1
-
     w_book.save(str(time.strftime("%Y%m%d", time.localtime()))+'_日結.xlsx')
 
 if __name__ == "__main__":
@@ -258,7 +227,7 @@ if __name__ == "__main__":
     url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
     while True:
         now = int(time.strftime("%H%M", time.localtime()))
-        if (now>=901 or now<=1320):
+        if (now>=901 and now<=1320):
             print("當前時間"+time.strftime("%Y-%m-%d %H:%M:%S" , time.localtime()), flush=True)
             _browser.get(url)
             count = count_warrant()
