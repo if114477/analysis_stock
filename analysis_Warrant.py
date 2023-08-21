@@ -200,7 +200,7 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
 
 # 發送line通知
 def line_notify(msg):
-    Line_Notify_Account = {'token':'bKJklUOQUc5A0FM8fxzY9OgxNO0XRUO3TURcOV4sDCK'} # eVjVO4y8jiQTCwHkGtzuOyMLZqqiZKUklr20dg8bcWJ
+    Line_Notify_Account = {'token':'XXX'}
 
     headers = {"Authorization": "Bearer " + Line_Notify_Account['token'],
                "Content-Type" : "application/x-www-form-urlencoded"}
