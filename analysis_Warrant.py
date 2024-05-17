@@ -133,6 +133,10 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
     rate_td = rate_tr.find_elements(By.TAG_NAME, 'td')
     warrant_total = rate_td[5].text.replace(",", "")  # 總發行張數
     warrant_rate = rate_td[7].text.replace("%", "")   # 在外流通率
+    leverage_ratio_tr = detail_tr[1]
+    leverage_ratio_td = leverage_ratio_tr.find_elements(By.TAG_NAME, 'td')
+    warrant_leverage_ratio = leverage_ratio_td[5].text
+
 
     # 當前資料
     warrant_data = _browser.find_element(By.XPATH, '//*[@id="warrantData"]')
@@ -144,7 +148,7 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
 
     # 取前一日在外流通張數低於1000張或是在外流通率低於10％，當作大戶買進依據
     if int(warrant_flux) < 1000 or int(float(warrant_rate)) < 10:
-        buy_toprt.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
+        buy_toprt.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux+" 實質槓桿："+warrant_leverage_ratio)
         buy_list.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
         
         condition = 1
@@ -153,14 +157,14 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
             if b_toxml[b] == buy_list[0]:
                 condition = 0
                 if int(buy_list[3])-int(b_toxml[b+3]) >= 100:
-                    buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
+                    buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux+" 實質槓桿："+warrant_leverage_ratio)
                     break
         # 資料不存在時，本次的交易量大於1000才發出通知
         if int(buy_list[3]) < 1000:
             condition = 0
 
         if condition == 1:
-            buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux)
+            buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux+" 實質槓桿："+warrant_leverage_ratio)
 
         add = 1
         # 資料存在時，覆蓋上新的資料
