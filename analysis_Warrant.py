@@ -2,8 +2,6 @@ import time, openpyxl, requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 
 def makeWebDriver():
@@ -11,7 +9,7 @@ def makeWebDriver():
     chrome_options.add_argument("--start-maximized")       # 視窗最大化
     chrome_options.add_argument('--headless')        # 背景执行
     chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    browser = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    browser = webdriver.Chrome(options=chrome_options)
 
     return browser
 
@@ -27,94 +25,140 @@ def select_category():
     _browser.execute_script("arguments[0].click();", checkbox)
     WebDriverWait(_browser, 30).until(EC.presence_of_element_located((By.XPATH, '//*[@data-role="listview"]')))
 
-# 找出符合權證(排除名字含有"售"、"反")
+# 找出所有權證
 def count_warrant():
     select_category()
     status = 1
     count = 0
-    print("-----當前符合權證-----", flush=True)
-    while status == 1:
-        table = _browser.find_element(By.XPATH, '//*[@data-role="listview"]')
-        warrant_rows = table.find_elements(By.TAG_NAME,'tr')
-        for row in range(len(warrant_rows)):
-            find_warrant = warrant_rows[row]
-            try:
-                _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="iMARK"]'))
-            except:
-                pass
-            WebDriverWait(_browser, 15).until(EC.element_to_be_clickable((By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]')))
-            warrant_attr = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]//*[contains(text(), "購") and not(contains(text(), "反"))]')
-        for attr in range(len(warrant_attr)):
-            count = count+1
-            warrant_name = warrant_attr[attr]
-            _browser.execute_script("arguments[0].scrollIntoView();", warrant_name)
-            print(str(count)+"、"+warrant_name.text, flush=True)
-
-        if row == 19:
-            status = 0
-
-    return count
+    print("-----當前所有權證-----", flush=True)
+    table = _browser.find_element(By.XPATH, '//*[@data-role="listview"]')
+    warrant_rows = table.find_elements(By.TAG_NAME,'tr')
+    for row in range(len(warrant_rows)):
+        find_warrant = warrant_rows[row]
+        try:
+            _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="iMARK"]'))
+        except:
+            pass
+        WebDriverWait(_browser, 15).until(EC.element_to_be_clickable((By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]')))
+        warrant_attr = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]//*[@class="textA"]')
+    for attr in range(len(warrant_attr)):
+        count = count+1
+        warrant_name = warrant_attr[attr]
+        _browser.execute_script("arguments[0].scrollIntoView();", warrant_name)
+        print(str(count)+"、"+warrant_name.text, flush=True)
 
 # 逐一分析符合權證
-def find_warrant(count, b_xml):
-    status = 1
-    times = 1
-    buy_toline = []
-    buy_toprt = []
-    print("-----分析結果-----", flush=True)
-    while status == 1:
-        table = _browser.find_element(By.XPATH, '//*[@data-role="listview"]')
-        warrant_rows = table.find_elements(By.TAG_NAME,'tr')
-        for row in range(len(warrant_rows)):
-            find_warrant = warrant_rows[row]
-            WebDriverWait(_browser, 15).until(EC.element_to_be_clickable((By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]')))
-            warrant_info = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]')
-            warrant_attr = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]//*[contains(text(), "購") and not(contains(text(), "反"))]')
-            for info in range(len(warrant_info)):
-                for attr in range(len(warrant_attr)):
-                    try:
-                        _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="iMARK"]'))
-                    except:
-                        pass
-                    find_info = warrant_info[info]
-                    warrant_name = warrant_attr[attr]
-                    if find_info.text == warrant_name.text:
-                        _browser.execute_script("arguments[0].scrollIntoView();", warrant_name)
-                        warrant_url = warrant_info[info-1]
-                        url = warrant_url.get_attribute("href")
-                        _browser.execute_script("window.open('')")
-                        _browser.switch_to.window(_browser.window_handles[1])
-                        _browser.get(url)
+def find_warrant(b_xml, s_xml):
+    try:
+        status = 1
+        times = 1
+        buy_toline = []
+        buy_toprt = []
+        sell_toline = []
+        sell_toprt = []
+        print("-----分析結果-----", flush=True)
+        while status == 1:
+            table = _browser.find_element(By.XPATH, '//*[@data-role="listview"]')
+            warrant_rows = table.find_elements(By.TAG_NAME,'tr')
+            for row in range(len(warrant_rows)):
+                find_warrant = warrant_rows[row]
+                WebDriverWait(_browser, 15).until(EC.element_to_be_clickable((By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]')))
+                warrant_info = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]')
+                warrant_buy = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]//*[contains(text(), "購") and not(contains(text(), "反"))]')
+                warrant_sell = find_warrant.find_elements(By.XPATH, '//*[contains(@href, "/EDWebSite/Controllers/WarrantRoute.aspx?")]//*[contains(text(), "售") or (contains(text(), "反"))]')
+                for info in range(len(warrant_info)):
+                    for attr in range(len(warrant_buy)):
                         try:
-                            WebDriverWait(_browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[text()="權證基本資料"]')))
-                            basic_info = _browser.find_element(By.XPATH, '//label[text()="權證基本資料"]')
-                            _browser.execute_script("arguments[0].click();", basic_info)
+                            _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="iMARK"]'))
                         except:
                             pass
-                        try:
-                            WebDriverWait(_browser, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ifWarrantAnalyzer"]')))
-                            _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="ifWarrantAnalyzer"]'))
-                            time.sleep(3)
-                            buy_forprt, buy_forline, b_forxml= analysis_data(buy_toprt, buy_toline, b_xml)
-                        except:
-                            pass
-                        _browser.close()
-                        _browser.switch_to.window(_browser.window_handles[0])
-                        times = times+1
+                        find_info = warrant_info[info]
+                        warrant_name = warrant_buy[attr]
+                        if find_info.text == warrant_name.text:
+                            _browser.execute_script("arguments[0].scrollIntoView();", warrant_name)
+                            warrant_url = warrant_info[info-1]
+                            url = warrant_url.get_attribute("href")
+                            _browser.execute_script("window.open('')")
+                            time.sleep(1)
+                            _browser.switch_to.window(_browser.window_handles[1])
+                            _browser.get(url)
+                            try:
+                                WebDriverWait(_browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[text()="權證基本資料"]')))
+                                basic_info = _browser.find_element(By.XPATH, '//label[text()="權證基本資料"]')
+                                _browser.execute_script("arguments[0].click();", basic_info)
+                            except:
+                                pass
+                            try:
+                                WebDriverWait(_browser, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ifWarrantAnalyzer"]')))
+                                _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="ifWarrantAnalyzer"]'))
+                                time.sleep(3)
+                                buy_forprt, buy_forline, b_forxml= analysis_data(buy_toprt, buy_toline, b_xml)
+                            except:
+                                pass
+                            _browser.close()
+                            _browser.switch_to.window(_browser.window_handles[0])
+                            times = times+1
 
-            # 顯示當次結果
-            if times >= attr:
-                buy_prt = '\n'.join(buy_forprt)
-                if len(buy_prt)!=0:
-                    print("大戶買進：\n"+buy_prt)
-                else:
-                    print("大戶買進：無")
-                buy_line = '\n'.join(buy_forline)
-                message = "大戶買進：\n"+buy_line
-                if len(buy_line)!=0:
-                    line_notify(message)
-                status = 0
-                break
+                    for attr in range(len(warrant_sell)):
+                        try:
+                            _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="iMARK"]'))
+                        except:
+                            pass
+                        find_info = warrant_info[info]
+                        warrant_name = warrant_sell[attr]
+                        if find_info.text == warrant_name.text:
+                            _browser.execute_script("arguments[0].scrollIntoView();", warrant_name)
+                            warrant_url = warrant_info[info-1]
+                            url = warrant_url.get_attribute("href")
+                            _browser.execute_script("window.open('')")
+                            time.sleep(1)
+                            _browser.switch_to.window(_browser.window_handles[1])
+                            _browser.get(url)
+                            try:
+                                WebDriverWait(_browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[text()="權證基本資料"]')))
+                                basic_info = _browser.find_element(By.XPATH, '//label[text()="權證基本資料"]')
+                                _browser.execute_script("arguments[0].click();", basic_info)
+                            except:
+                                pass
+                            try:
+                                WebDriverWait(_browser, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ifWarrantAnalyzer"]')))
+                                _browser.switch_to.frame(_browser.find_element(By.XPATH, '//*[@id="ifWarrantAnalyzer"]'))
+                                time.sleep(3)
+                                sell_forprt, sell_forline, s_forxml= analysis_data(sell_toprt, sell_toline, s_xml)
+                            except:
+                                pass
+                            _browser.close()
+                            _browser.switch_to.window(_browser.window_handles[0])
+                            times = times+1
+
+                # 顯示當次結果
+                if times >= attr:
+                    buy_prt = '\n'.join(buy_forprt)
+                    sell_prt = '\n'.join(sell_forprt)
+                    if len(buy_prt)!=0:
+                        print("認購大戶買進：\n"+buy_prt)
+                    else:
+                        print("認購大戶買進：無")
+
+                    if len(sell_prt)!=0:
+                        print("認售大戶買進：\n"+sell_prt)
+                    else:
+                        print("認售大戶買進：無")
+                    buy_line = '\n'.join(buy_forline)
+                    sell_line = '\n'.join(sell_forline)
+                    # sell_toStr = '\n'.join(sell)
+                    message_buy = "在外流通數增加：\n"+buy_line
+                    message_sell = "在外流通數增加：\n"+sell_line
+                    if len(buy_line)!=0:
+                        # line_notify(message)
+                        discord_notify(message_buy, 0)
+                        discord_notify(message_sell, 1)
+                    # print("大戶賣出：\n"+sell_toStr)
+                    # notification(buy_toStr, sell_toStr)
+                    status = 0
+                    break
+    except:
+        pass
     return b_forxml
 
 # 分析資料
@@ -137,7 +181,6 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
     leverage_ratio_td = leverage_ratio_tr.find_elements(By.TAG_NAME, 'td')
     warrant_leverage_ratio = leverage_ratio_td[5].text
 
-
     # 當前資料
     warrant_data = _browser.find_element(By.XPATH, '//*[@id="warrantData"]')
     data_td = warrant_data.find_elements(By.TAG_NAME, 'td')
@@ -156,7 +199,7 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
         for b in range(0, len(b_toxml), 6):
             if b_toxml[b] == buy_list[0]:
                 condition = 0
-                if int(buy_list[3])-int(b_toxml[b+3]) >= 100:
+                if int(buy_list[3])-int(b_toxml[b+3]) >= 600:
                     buy_toline.append(warrant_code+" "+warrant_name+" 當前價格："+warrant_price+" 交易量："+warrant_vol+" 總發行："+warrant_total+" 在外流通："+warrant_flux+" 實質槓桿："+warrant_leverage_ratio)
                     break
         # 資料不存在時，本次的交易量大於1000才發出通知
@@ -180,18 +223,51 @@ def analysis_data(buy_toprt, buy_toline, b_toxml):
         if add == 1:
             b_toxml.extend([warrant_code, warrant_name, warrant_price, warrant_vol, warrant_total, warrant_flux])
 
+    # 取前一日在外流通張數高於10000張或是在外流通率高80％，當作大戶賣出依據
+    # if int((warrant_flux.text).replace(",", "")) > 10000 or int(float((warrant_rate.text).replace("%", ""))) > 80:
+    #     sell.append(warrant_code.text+" "+warrant_name.text+" 當前價格："+warrant_price.text+" 交易量："+warrant_vol.text+" 總發行："+warrant_total.text+" 在外流通："+warrant_flux.text)
+    #     sell_list.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+    #     # 判斷符合權證是否存在於陣列中，如果沒有則存進陣列 用途是寫進excel
+    #     if len(s_toxml) == 0:
+    #         s_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+    #     else:
+    #         for s in range(0, len(s_toxml), 6):
+    #             if s_toxml[s] == sell_list[0]:
+    #                 for index in range(0, 5):
+    #                     s_toxml[s] = sell_list[index]
+    #             else:
+    #                 add = 1
+    #         if add == 1:        
+    #             s_toxml.extend([warrant_code.text, warrant_name.text, warrant_price.text, warrant_vol.text, warrant_total.text, warrant_flux.text])
+
     return buy_toprt, buy_toline, b_toxml
 
 # 發送line通知
 def line_notify(msg):
-    Line_Notify_Account = {'token':'XXX'}
+    Line_Notify_Account = {'token':'xxx'}
 
-    headers = {"Authorization": "Bearer " + Line_Notify_Account['token'],
-               "Content-Type" : "application/x-www-form-urlencoded"}
+    headers = {
+        "Authorization": "Bearer " + Line_Notify_Account['token'],
+        "Content-Type" : "application/x-www-form-urlencoded"
+    }
 
-    params = {"message":msg}
+    params = {
+        "message":msg
+    }
 
     r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=params)
+
+# 發送discord通知
+def discord_notify(msg, warrant_type):
+    data = {
+        "content": msg,
+    }
+    # 0是認購、1是認售
+    url = ["xxx", "xxx"]
+    try:
+        res = requests.post(url=url[warrant_type], data=data)
+    except:
+        pass
 
 # 寫資料 儲存每日結果至excel
 def write_data(buy):
@@ -223,24 +299,37 @@ def write_data(buy):
             buy_sheet.cell(column, row).value = buy[(column*6)-index]
             index = index-1
 
+    # sell_sheet = w_book["賣出"]
+    # # 寫入標籤
+    # for title in range(1, len(warrant_info)+1):
+    #     sell_sheet.cell(1, title).value = warrant_info[title-1]
+    # # 寫入資料    
+    # for column in range(2, (len(sell)//6)+2):
+    #     index = 12
+    #     for row in range(1, 7):
+    #         sell_sheet.cell(column, row).value = sell[(column*6)-index]
+    #         index = index-1
+
     w_book.save(str(time.strftime("%Y%m%d", time.localtime()))+'_日結.xlsx')
 
 if __name__ == "__main__":
-    _browser = makeWebDriver()
     buy_xml=[]
+    sell_xml=[]
     url = "https://warrant.kgi.com/EDWebSite/Views/StrategyCandidate/MarketStatisticsIframe.aspx"
     while True:
         now = int(time.strftime("%H%M", time.localtime()))
-        if (now>=901 and now<=1320):
+        if (now>=910 and now<1330):
             print("當前時間"+time.strftime("%Y-%m-%d %H:%M:%S" , time.localtime()), flush=True)
+            _browser = makeWebDriver()
             _browser.get(url)
-            count = count_warrant()
-            buy_daily = find_warrant(count, buy_xml)
+            count_warrant()
+            buy_daily = find_warrant(buy_xml, sell_xml)
             _browser.execute_script("window.open('')")
             _browser.switch_to.window(_browser.window_handles[0])
             _browser.close()
             _browser.switch_to.window(_browser.window_handles[0])
             print("-----本次分析結束-----\n", flush=True)
+            time.sleep(1800)
         elif now >= 1330:
             _browser.quit()
             print("-----當前分析時間：1330，結束分析-----", flush=True)
