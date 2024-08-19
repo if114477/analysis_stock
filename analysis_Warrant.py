@@ -152,6 +152,7 @@ def find_warrant(b_xml, s_xml):
                     if len(buy_line)!=0:
                         # line_notify(message)
                         discord_notify(message_buy, 0)
+                    if len(sell_line)!=0:
                         discord_notify(message_sell, 1)
                     # print("大戶賣出：\n"+sell_toStr)
                     # notification(buy_toStr, sell_toStr)
